@@ -71,6 +71,8 @@ _WIN32_VK: dict[str, int] = {
 }
 
 HOTKEY_ID_INVOKE = 1
+HOTKEY_ID_ENTER = 2
+HOTKEY_ID_ESC = 3
 
 
 class HotkeyManager:
@@ -142,15 +144,39 @@ class HotkeyManager:
 
         logger.info("Hotkey registered: %s (Enter=send, Esc=cancel)", self._hotkey_str)
 
+        recording_keys_registered = False
         msg = ctypes.wintypes.MSG()
         while self._running:
+            # Register Enter/Esc when recording starts (they eat the key)
+            with self._lock:
+                is_recording = self._state == AppState.RECORDING
+
+            if is_recording and not recording_keys_registered:
+                user32.RegisterHotKey(None, HOTKEY_ID_ENTER, 0, 0x0D)  # Enter
+                user32.RegisterHotKey(None, HOTKEY_ID_ESC, 0, 0x1B)  # Esc
+                recording_keys_registered = True
+            elif not is_recording and recording_keys_registered:
+                user32.UnregisterHotKey(None, HOTKEY_ID_ENTER)
+                user32.UnregisterHotKey(None, HOTKEY_ID_ESC)
+                recording_keys_registered = False
+
             if user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 1):
                 if msg.message == 0x0312:  # WM_HOTKEY
-                    self._handle_invoke()
+                    hotkey_id = msg.wParam
+                    if hotkey_id == HOTKEY_ID_INVOKE:
+                        self._handle_invoke()
+                    elif hotkey_id == HOTKEY_ID_ENTER:
+                        self._handle_enter()
+                    elif hotkey_id == HOTKEY_ID_ESC:
+                        self._handle_esc()
             else:
-                time.sleep(0.05)
+                time.sleep(0.02)
 
+        # Cleanup
         user32.UnregisterHotKey(None, HOTKEY_ID_INVOKE)
+        if recording_keys_registered:
+            user32.UnregisterHotKey(None, HOTKEY_ID_ENTER)
+            user32.UnregisterHotKey(None, HOTKEY_ID_ESC)
 
     def _handle_invoke(self) -> None:
         now = time.monotonic()
@@ -166,6 +192,26 @@ class HotkeyManager:
         logger.info("Hotkey invoked - recording started")
         if self._on_start:
             self._on_start()
+
+    def _handle_enter(self) -> None:
+        with self._lock:
+            if self._state != AppState.RECORDING:
+                return
+            self._state = AppState.PROCESSING
+
+        logger.info("Enter pressed - confirming")
+        if self._on_stop:
+            self._on_stop()
+
+    def _handle_esc(self) -> None:
+        with self._lock:
+            if self._state != AppState.RECORDING:
+                return
+            self._state = AppState.IDLE
+
+        logger.info("Esc pressed - cancelling")
+        if self._on_cancel:
+            self._on_cancel()
 
     def _start_recording_keys(self) -> None:
         """Listen for Enter/Esc during recording via pynput."""
@@ -206,8 +252,7 @@ class HotkeyManager:
             self._thread.start()
         else:
             logger.warning("Win32 hotkey not available, falling back to pynput")
-
-        self._start_recording_keys()
+            self._start_recording_keys()
 
     def stop(self) -> None:
         """Stop listening for the global hotkey."""
