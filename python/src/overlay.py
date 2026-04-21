@@ -1,7 +1,10 @@
-"""Floating overlay UI using Windows Fluent Design.
+"""Floating overlay UI with Windows Fluent Design styling.
 
-Uses QFluentWidgets for native Windows look and feel with Mica/Acrylic backdrop,
-Fluent typography, and animated progress indicators.
+Uses native PyQt6 with Fluent Design-inspired stylesheets:
+- Segoe UI Variable font
+- WinUI 3 color tokens (dark theme)
+- Rounded corners, acrylic-style backdrop
+- Indeterminate progress animation
 """
 
 from __future__ import annotations
@@ -21,30 +24,49 @@ try:
     from PyQt6.QtGui import (
         QColor,
         QCursor,
+        QFont,
         QGuiApplication,
         QLinearGradient,
         QPainter,
         QPainterPath,
         QPen,
     )
-    from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
+    from PyQt6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
 
     HAS_PYQT6 = True
 except ImportError:
     HAS_PYQT6 = False
 
-HAS_FLUENT = False
-try:
-    import qfluentwidgets  # noqa: F401
 
-    HAS_FLUENT = True
-except ImportError:
-    pass
+# WinUI 3 dark theme color tokens
+FLUENT_ACCENT = "#60CDFF"
+FLUENT_WARN = "#FCE100"
+FLUENT_ERROR = "#FF99A4"
+FLUENT_SUCCESS = "#6CCB5F"
+FLUENT_TEXT = "#FFFFFF"
+FLUENT_TEXT_DIM = "rgba(255,255,255,0.6)"
+FLUENT_TEXT_SUBTLE = "rgba(255,255,255,0.36)"
+FLUENT_SURFACE = (44, 44, 44, 235)
+FLUENT_BORDER = (255, 255, 255, 12)
+FLUENT_FONT = "Segoe UI Variable, Segoe UI, sans-serif"
+
+# Fluent progress bar stylesheet
+PROGRESS_STYLE = """
+QProgressBar {
+    background: rgba(255,255,255,0.06);
+    border: none;
+    border-radius: 2px;
+    max-height: 3px;
+}
+QProgressBar::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 transparent, stop:0.5 #60CDFF, stop:1 transparent);
+    border-radius: 2px;
+}
+"""
 
 
 class OverlayState:
-    """Visual states for the overlay."""
-
     RECORDING = "recording"
     PROCESSING = "processing"
     TRANSLATING = "translating"
@@ -57,12 +79,12 @@ class OverlayState:
 if HAS_PYQT6:
 
     class WaveformWidget(QWidget):
-        """Draws a smooth, amplified real-time audio waveform."""
+        """Smooth, amplified audio waveform with Fluent accent color."""
 
         def __init__(
             self,
             ring_buffer: AudioRingBuffer | None = None,
-            color: str = "#60CDFF",
+            color: str = FLUENT_ACCENT,
             parent: QWidget | None = None,
         ) -> None:
             super().__init__(parent)
@@ -70,10 +92,10 @@ if HAS_PYQT6:
             self._color = QColor(color)
             self._frozen_data: np.ndarray | None = None
             self._gain = 8.0
-            self.setMinimumHeight(60)
+            self.setMinimumHeight(56)
 
-        def set_ring_buffer(self, ring_buffer: AudioRingBuffer) -> None:
-            self._ring_buffer = ring_buffer
+        def set_ring_buffer(self, rb: AudioRingBuffer) -> None:
+            self._ring_buffer = rb
 
         def set_color(self, color: str) -> None:
             self._color = QColor(color)
@@ -94,10 +116,8 @@ if HAS_PYQT6:
         def paintEvent(self, event: object) -> None:  # noqa: N802
             painter = QPainter(self)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-            w = self.width()
-            h = self.height()
-            mid_y = h / 2.0
+            w, h = self.width(), self.height()
+            mid = h / 2.0
 
             if self._frozen_data is not None:
                 data = self._frozen_data.copy()
@@ -107,85 +127,63 @@ if HAS_PYQT6:
                 data = np.zeros(w, dtype=np.float32)
 
             if len(data) > w:
-                indices = np.linspace(0, len(data) - 1, w, dtype=int)
-                data = data[indices]
+                data = data[np.linspace(0, len(data) - 1, w, dtype=int)]
             elif len(data) < w:
                 data = np.pad(data, (0, w - len(data)))
 
             data = np.clip(data * self._gain, -1.0, 1.0)
             data = self._smooth(data)
 
-            # Filled area under curve
+            # Gradient fill
             path = QPainterPath()
-            path.moveTo(0, mid_y)
+            path.moveTo(0, mid)
             for x in range(w):
-                y = mid_y - data[x] * mid_y * 0.85
-                path.lineTo(float(x), y)
-            path.lineTo(float(w - 1), mid_y)
+                path.lineTo(float(x), mid - data[x] * mid * 0.85)
+            path.lineTo(float(w - 1), mid)
             path.closeSubpath()
 
-            gradient = QLinearGradient(0, 0, 0, h)
-            fill_color = QColor(self._color)
-            fill_color.setAlpha(60)
-            gradient.setColorAt(0.0, fill_color)
-            fill_color.setAlpha(10)
-            gradient.setColorAt(1.0, fill_color)
-            painter.fillPath(path, gradient)
+            grad = QLinearGradient(0, 0, 0, h)
+            c = QColor(self._color)
+            c.setAlpha(50)
+            grad.setColorAt(0.0, c)
+            c.setAlpha(5)
+            grad.setColorAt(1.0, c)
+            painter.fillPath(path, grad)
 
             # Line
-            pen = QPen(self._color, 2.0)
-            painter.setPen(pen)
+            painter.setPen(QPen(self._color, 2.0))
             for x in range(w - 1):
-                y1 = mid_y - data[x] * mid_y * 0.85
-                y2 = mid_y - data[x + 1] * mid_y * 0.85
+                y1 = mid - data[x] * mid * 0.85
+                y2 = mid - data[x + 1] * mid * 0.85
                 painter.drawLine(int(x), int(y1), int(x + 1), int(y2))
 
-            # Center reference line
-            pen = QPen(QColor(255, 255, 255, 20), 1.0)
-            painter.setPen(pen)
-            painter.drawLine(0, int(mid_y), w, int(mid_y))
-
+            # Center ref
+            painter.setPen(QPen(QColor(255, 255, 255, 15), 1.0))
+            painter.drawLine(0, int(mid), w, int(mid))
             painter.end()
 
     class OverlayWindow(QWidget):
-        """Fluent Design floating overlay."""
+        """Fluent Design overlay — styled with native Qt, no external deps."""
 
         show_signal = pyqtSignal()
         hide_signal = pyqtSignal()
         set_state_signal = pyqtSignal(str, str)
 
-        # Fluent Design colors (dark theme)
-        ACCENT = "#60CDFF"
-        ACCENT_WARN = "#FCE100"
-        ACCENT_ERROR = "#FF99A4"
-        ACCENT_SUCCESS = "#6CCB5F"
-        TEXT_PRIMARY = "#FFFFFF"
-        TEXT_SECONDARY = "rgba(255,255,255,0.6)"
-        TEXT_TERTIARY = "rgba(255,255,255,0.4)"
-
         def __init__(
             self,
             width: int = 380,
             height: int = 160,
-            waveform_color: str = "#60CDFF",
-            processing_color: str = "#FCE100",
-            translating_color: str = "#60CDFF",
+            waveform_color: str = FLUENT_ACCENT,
+            processing_color: str = FLUENT_WARN,
+            translating_color: str = FLUENT_ACCENT,
             opacity: float = 0.96,
         ) -> None:
             super().__init__()
-            self._bg_surface = QColor(44, 44, 44, 240)
-            self._bg_border = QColor(255, 255, 255, 15)
             self._width = width
             self._height = height
-            self._waveform_color = waveform_color
-            self._processing_color = processing_color
-            self._translating_color = translating_color
             self._state = OverlayState.HIDDEN
-
-            if HAS_FLUENT:
-                from qfluentwidgets import Theme, setTheme
-
-                setTheme(Theme.DARK)
+            self._bg_surface = QColor(*FLUENT_SURFACE)
+            self._bg_border = QColor(*FLUENT_BORDER)
 
             self.setWindowFlags(
                 Qt.WindowType.FramelessWindowHint
@@ -198,49 +196,28 @@ if HAS_PYQT6:
             self.setFixedSize(width, height)
             self.setWindowOpacity(opacity)
 
-            # Main layout
             layout = QVBoxLayout(self)
-            layout.setContentsMargins(20, 16, 20, 16)
-            layout.setSpacing(4)
+            layout.setContentsMargins(20, 14, 20, 14)
+            layout.setSpacing(2)
 
-            # Import Fluent widgets (deferred to avoid QWidget-before-QApplication)
-            if HAS_FLUENT:
-                from qfluentwidgets import (  # noqa: I001
-                    BodyLabel,
-                    CaptionLabel,
-                    IndeterminateProgressBar,
-                )
-
-                fluent_body = BodyLabel
-                fluent_caption = CaptionLabel
-                fluent_progress = IndeterminateProgressBar
-            else:
-                fluent_body = fluent_caption = fluent_progress = None  # type: ignore[assignment]
-
-            # Title row
-            title_row = QHBoxLayout()
-            title_row.setSpacing(8)
-            if fluent_caption:
-                self._title_label = fluent_caption("UNIVERSALTRANSLATOR")
-            else:
-                self._title_label = QWidget()  # type: ignore[assignment]
-            self._title_label.setStyleSheet(  # type: ignore[union-attr]
-                f"color: {self.TEXT_TERTIARY}; background: transparent; letter-spacing: 1px;"
+            # Header row
+            header = QHBoxLayout()
+            header.setSpacing(8)
+            self._title = QLabel("UNIVERSALTRANSLATOR")
+            self._title.setFont(QFont(FLUENT_FONT, 8))
+            self._title.setStyleSheet(
+                f"color: {FLUENT_TEXT_SUBTLE}; background: transparent; letter-spacing: 1.5px;"
             )
-            title_row.addWidget(self._title_label)  # type: ignore[arg-type]
-            title_row.addStretch()
-
-            # Model badge
-            if fluent_caption:
-                self._model_badge = fluent_caption("")
-            else:
-                self._model_badge = QWidget()  # type: ignore[assignment]
-            self._model_badge.setStyleSheet(  # type: ignore[union-attr]
-                f"color: {self.ACCENT}; background: rgba(96,205,255,0.1); "
-                "border-radius: 4px; padding: 2px 8px;"
+            header.addWidget(self._title)
+            header.addStretch()
+            self._badge = QLabel("")
+            self._badge.setFont(QFont(FLUENT_FONT, 8))
+            self._badge.setStyleSheet(
+                f"color: {FLUENT_ACCENT}; background: rgba(96,205,255,0.08); "
+                "border-radius: 3px; padding: 1px 8px;"
             )
-            title_row.addWidget(self._model_badge)  # type: ignore[arg-type]
-            layout.addLayout(title_row)
+            header.addWidget(self._badge)
+            layout.addLayout(header)
 
             layout.addSpacing(4)
 
@@ -248,84 +225,69 @@ if HAS_PYQT6:
             self._waveform = WaveformWidget(color=waveform_color)
             layout.addWidget(self._waveform)
 
-            # Progress bar (Fluent indeterminate)
-            if fluent_progress:
-                self._progress = fluent_progress(self)
-            else:
-                self._progress = QWidget()  # type: ignore[assignment]
-            self._progress.setFixedHeight(4)  # type: ignore[union-attr]
-            self._progress.hide()  # type: ignore[union-attr]
-            layout.addWidget(self._progress)  # type: ignore[arg-type]
+            # Progress bar
+            self._progress = QProgressBar()
+            self._progress.setTextVisible(False)
+            self._progress.setRange(0, 0)  # Indeterminate
+            self._progress.setFixedHeight(3)
+            self._progress.setStyleSheet(PROGRESS_STYLE)
+            self._progress.hide()
+            layout.addWidget(self._progress)
 
-            # Status label
-            if fluent_body:
-                self._status_label = fluent_body("Ready")
-            else:
-                self._status_label = QWidget()  # type: ignore[assignment]
-            self._status_label.setStyleSheet(  # type: ignore[union-attr]
-                f"color: {self.TEXT_PRIMARY}; background: transparent;"
-            )
-            self._status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # type: ignore[union-attr]
-            layout.addWidget(self._status_label)  # type: ignore[arg-type]
+            layout.addSpacing(4)
 
-            # Detail label
-            if fluent_caption:
-                self._detail_label = fluent_caption("")
-            else:
-                self._detail_label = QWidget()  # type: ignore[assignment]
-            self._detail_label.setStyleSheet(  # type: ignore[union-attr]
-                f"color: {self.TEXT_TERTIARY}; background: transparent;"
-            )
-            self._detail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # type: ignore[union-attr]
-            layout.addWidget(self._detail_label)  # type: ignore[arg-type]
+            # Status
+            self._status = QLabel("Ready")
+            self._status.setFont(QFont(FLUENT_FONT, 11))
+            self._status.setStyleSheet(f"color: {FLUENT_TEXT}; background: transparent;")
+            self._status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(self._status)
 
-            # Translation label
-            if fluent_body:
-                self._translation_label = fluent_body("")
-            else:
-                self._translation_label = QWidget()  # type: ignore[assignment]
-            self._translation_label.setStyleSheet(  # type: ignore[union-attr]
-                f"color: {self.ACCENT}; background: transparent;"
-            )
-            self._translation_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # type: ignore[union-attr]
-            self._translation_label.setWordWrap(True)  # type: ignore[union-attr]
-            self._translation_label.hide()  # type: ignore[union-attr]
-            layout.addWidget(self._translation_label)  # type: ignore[arg-type]
+            # Detail
+            self._detail = QLabel("")
+            self._detail.setFont(QFont(FLUENT_FONT, 9))
+            self._detail.setStyleSheet(f"color: {FLUENT_TEXT_SUBTLE}; background: transparent;")
+            self._detail.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(self._detail)
 
-            # Waveform refresh timer (~30fps)
+            # Translation preview
+            self._translation = QLabel("")
+            self._translation.setFont(QFont(FLUENT_FONT, 10))
+            self._translation.setStyleSheet(f"color: {FLUENT_ACCENT}; background: transparent;")
+            self._translation.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._translation.setWordWrap(True)
+            self._translation.hide()
+            layout.addWidget(self._translation)
+
+            # Timers
             self._refresh_timer = QTimer(self)
             self._refresh_timer.timeout.connect(self._refresh)
             self._refresh_timer.setInterval(33)
 
-            # Auto-hide timer
             self._done_timer = QTimer(self)
             self._done_timer.setSingleShot(True)
             self._done_timer.timeout.connect(self._auto_hide)
 
-            # Signals
             self.show_signal.connect(self._do_show)
             self.hide_signal.connect(self._do_hide)
             self.set_state_signal.connect(self._do_set_state)
 
-        def set_ring_buffer(self, ring_buffer: AudioRingBuffer) -> None:
-            self._waveform.set_ring_buffer(ring_buffer)
+        def set_ring_buffer(self, rb: AudioRingBuffer) -> None:
+            self._waveform.set_ring_buffer(rb)
 
         def _position_near_cursor(self) -> None:
-            cursor_pos = QCursor.pos()
-            screen = QGuiApplication.screenAt(cursor_pos)
+            pos = QCursor.pos()
+            screen = QGuiApplication.screenAt(pos) or QGuiApplication.primaryScreen()
             if screen is None:
-                screen = QGuiApplication.primaryScreen()
-            if screen is None:
-                self.move(cursor_pos.x() + 20, cursor_pos.y() + 20)
+                self.move(pos.x() + 20, pos.y() + 20)
                 return
-
             geo = screen.availableGeometry()
-            x = cursor_pos.x() + 20
-            y = cursor_pos.y() + 20
+            x = pos.x() + 20
+            y = pos.y() + 20
             if x + self._width > geo.right():
-                x = cursor_pos.x() - self._width - 20
+                x = pos.x() - self._width - 20
             if y + self._height > geo.bottom():
-                y = cursor_pos.y() - self._height - 20
+                y = pos.y() - self._height - 20
             self.move(max(x, geo.left()), max(y, geo.top()))
 
         def _do_show(self) -> None:
@@ -336,92 +298,67 @@ if HAS_PYQT6:
         def _do_hide(self) -> None:
             self._refresh_timer.stop()
             self._done_timer.stop()
-            self._progress.hide()  # type: ignore[union-attr]
+            self._progress.hide()
             self._waveform.unfreeze()
             self._waveform.show()
-            self._translation_label.hide()  # type: ignore[union-attr]
+            self._translation.hide()
             self.hide()
             self._state = OverlayState.HIDDEN
 
-        def _do_set_state(self, state: str, extra_text: str) -> None:
+        def _do_set_state(self, state: str, extra: str) -> None:
             self._state = state
 
             if state == OverlayState.RECORDING:
-                self._waveform.set_color(self._waveform_color)
                 self._waveform.unfreeze()
                 self._waveform.show()
-                self._progress.hide()  # type: ignore[union-attr]
-                self._status_label.setText("Recording")  # type: ignore[union-attr]
-                self._status_label.setStyleSheet(  # type: ignore[union-attr]
-                    f"color: {self.ACCENT}; background: transparent;"
-                )
-                self._model_badge.setText(extra_text if extra_text else "")  # type: ignore[union-attr]
-                self._detail_label.setText("Enter to send  ·  Esc to cancel")  # type: ignore[union-attr]
-                self._detail_label.show()  # type: ignore[union-attr]
-                self._translation_label.hide()  # type: ignore[union-attr]
+                self._progress.hide()
+                self._badge.setText(extra or "")
+                self._status.setText("Recording")
+                self._status.setStyleSheet(f"color: {FLUENT_ACCENT}; background: transparent;")
+                self._detail.setText("Enter to send  ·  Esc to cancel")
+                self._detail.show()
+                self._translation.hide()
 
             elif state == OverlayState.PROCESSING:
                 self._waveform.hide()
-                self._progress.show()  # type: ignore[union-attr]
-                if HAS_FLUENT:
-                    self._progress.start()  # type: ignore[union-attr]
-                self._status_label.setText("Processing...")  # type: ignore[union-attr]
-                self._status_label.setStyleSheet(  # type: ignore[union-attr]
-                    f"color: {self.ACCENT_WARN}; background: transparent;"
-                )
-                self._detail_label.setText(  # type: ignore[union-attr]
-                    f"Transcribing with {extra_text}" if extra_text else "Transcribing"
-                )
+                self._progress.show()
+                self._status.setText("Processing...")
+                self._status.setStyleSheet(f"color: {FLUENT_WARN}; background: transparent;")
+                self._detail.setText(f"Transcribing with {extra}" if extra else "Transcribing")
+                self._detail.show()
 
             elif state == OverlayState.TRANSLATING:
                 self._waveform.hide()
-                self._progress.show()  # type: ignore[union-attr]
-                if HAS_FLUENT:
-                    self._progress.start()  # type: ignore[union-attr]
-                self._status_label.setText(  # type: ignore[union-attr]
-                    f"Translating → {extra_text}" if extra_text else "Translating..."
-                )
-                self._status_label.setStyleSheet(  # type: ignore[union-attr]
-                    f"color: {self.ACCENT}; background: transparent;"
-                )
-                self._detail_label.setText("Converting to target language")  # type: ignore[union-attr]
-                self._translation_label.show()  # type: ignore[union-attr]
+                self._progress.show()
+                self._status.setText(f"Translating → {extra}" if extra else "Translating...")
+                self._status.setStyleSheet(f"color: {FLUENT_ACCENT}; background: transparent;")
+                self._detail.setText("Converting to target language")
+                self._detail.show()
+                self._translation.show()
 
             elif state == OverlayState.DOWNLOADING:
                 self._waveform.hide()
-                self._progress.show()  # type: ignore[union-attr]
-                if HAS_FLUENT:
-                    self._progress.start()  # type: ignore[union-attr]
-                self._status_label.setText(extra_text or "Downloading model...")  # type: ignore[union-attr]
-                self._status_label.setStyleSheet(  # type: ignore[union-attr]
-                    f"color: {self.ACCENT_WARN}; background: transparent;"
-                )
-                self._detail_label.setText("One-time setup — please wait")  # type: ignore[union-attr]
-                self._detail_label.show()  # type: ignore[union-attr]
+                self._progress.show()
+                self._status.setText(extra or "Downloading model...")
+                self._status.setStyleSheet(f"color: {FLUENT_WARN}; background: transparent;")
+                self._detail.setText("One-time setup — please wait")
+                self._detail.show()
 
             elif state == OverlayState.DONE:
                 self._waveform.hide()
-                self._progress.hide()  # type: ignore[union-attr]
-                if HAS_FLUENT:
-                    self._progress.stop()  # type: ignore[union-attr]
-                self._status_label.setText("✓ Pasted")  # type: ignore[union-attr]
-                self._status_label.setStyleSheet(  # type: ignore[union-attr]
-                    f"color: {self.ACCENT_SUCCESS}; background: transparent;"
-                )
-                self._detail_label.hide()  # type: ignore[union-attr]
+                self._progress.hide()
+                self._status.setText("✓ Pasted")
+                self._status.setStyleSheet(f"color: {FLUENT_SUCCESS}; background: transparent;")
+                self._detail.hide()
                 self._done_timer.start(1200)
 
             elif state == OverlayState.ERROR:
                 self._waveform.hide()
-                self._progress.hide()  # type: ignore[union-attr]
-                if HAS_FLUENT:
-                    self._progress.stop()  # type: ignore[union-attr]
-                self._status_label.setText(extra_text or "Error")  # type: ignore[union-attr]
-                self._status_label.setStyleSheet(  # type: ignore[union-attr]
-                    f"color: {self.ACCENT_ERROR}; background: transparent;"
-                )
-                self._detail_label.setText("Check system tray for details")  # type: ignore[union-attr]
-                self._detail_label.show()  # type: ignore[union-attr]
+                self._progress.hide()
+                self._status.setText(extra or "Error")
+                self._status.setStyleSheet(f"color: {FLUENT_ERROR}; background: transparent;")
+                self._detail.setText("Check system tray for details")
+                self._detail.show()
                 self._done_timer.start(4000)
 
         def _auto_hide(self) -> None:
@@ -432,14 +369,12 @@ if HAS_PYQT6:
                 self._waveform.update()
 
         def update_translation_text(self, text: str) -> None:
-            self._translation_label.setText(text)  # type: ignore[union-attr]
-            self._translation_label.show()  # type: ignore[union-attr]
+            self._translation.setText(text)
+            self._translation.show()
 
         def paintEvent(self, event: object) -> None:  # noqa: N802
             painter = QPainter(self)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-            # Fluent dark surface with subtle border
             painter.setBrush(self._bg_surface)
             painter.setPen(QPen(self._bg_border, 1.0))
             painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 8, 8)
