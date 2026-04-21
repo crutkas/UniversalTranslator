@@ -83,7 +83,7 @@ class HotkeyManager:
 
     def __init__(
         self,
-        hotkey_str: str = "ctrl+alt+h",
+        hotkey_str: str = "ctrl+win+h",
         on_start: Callable[[], None] | None = None,
         on_stop: Callable[[], None] | None = None,
         on_cancel: Callable[[], None] | None = None,
