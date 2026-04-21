@@ -12,7 +12,7 @@ DEFAULT_CONFIG_PATHS = [
 ]
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "hotkey": "win+ctrl+h",
+    "hotkey": "ctrl+alt+h",
     "default_model": "whisper",
     "models": {
         "whisper": {

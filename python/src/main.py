@@ -61,7 +61,7 @@ class AppController(QObject if HAS_PYQT6 else object):  # type: ignore[misc]
 
         # Hotkey manager
         self._hotkey = HotkeyManager(
-            hotkey_str=config.get("hotkey", "win+ctrl+h"),
+            hotkey_str=config.get("hotkey", "ctrl+alt+h"),
             on_start=self._on_hotkey_start,
             on_stop=self._on_hotkey_stop,
             on_cancel=self._on_hotkey_cancel,
