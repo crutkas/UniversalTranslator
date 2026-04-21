@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 from typing import Any
@@ -10,12 +11,11 @@ from src.translation.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
 
-try:
-    from transformers import AutoProcessor, SeamlessM4Tv2ForTextToText
 
-    HAS_SEAMLESS = True
-except ImportError:
-    HAS_SEAMLESS = False
+def _import_transformers() -> Any:
+    """Dynamically import transformers (works after runtime pip install)."""
+    return importlib.import_module("transformers")
+
 
 SEAMLESS_LANG_CODES: dict[str, str] = {
     "en": "eng",
@@ -59,15 +59,14 @@ class SeamlessEngine(TranslationEngine):
         return "SeamlessM4T v2"
 
     def needs_download(self) -> bool:
-        if not HAS_SEAMLESS or self._model is not None:
+        if not self.is_available() or self._model is not None:
             return False
         cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
         repo_name = self._model_name.replace("/", "--")
         return not os.path.exists(os.path.join(cache_dir, f"models--{repo_name}"))
 
     def download_model(self, progress_callback: Any | None = None) -> None:
-        if not HAS_SEAMLESS:
-            raise RuntimeError("transformers with SeamlessM4T support is not installed")
+        _import_transformers()  # fail fast if not installed
         if progress_callback:
             progress_callback(f"⬇️ Downloading {self.name}...")
         logger.info("Downloading SeamlessM4T model: %s", self._model_name)
@@ -77,11 +76,10 @@ class SeamlessEngine(TranslationEngine):
 
     def _ensure_model(self) -> None:
         if self._model is None:
-            if not HAS_SEAMLESS:
-                raise RuntimeError("transformers with SeamlessM4T support is not installed")
+            tf = _import_transformers()
             logger.info("Loading SeamlessM4T model: %s", self._model_name)
-            self._processor = AutoProcessor.from_pretrained(self._model_name)
-            self._model = SeamlessM4Tv2ForTextToText.from_pretrained(self._model_name)
+            self._processor = tf.AutoProcessor.from_pretrained(self._model_name)
+            self._model = tf.SeamlessM4Tv2ForTextToText.from_pretrained(self._model_name)
             if self._device != "auto" and self._device != "cpu":
                 self._model = self._model.to(self._device)
 
@@ -107,7 +105,11 @@ class SeamlessEngine(TranslationEngine):
         return list(SEAMLESS_LANG_CODES.keys())
 
     def is_available(self) -> bool:
-        return HAS_SEAMLESS
+        try:
+            _import_transformers()
+            return True
+        except ImportError:
+            return False
 
     def cleanup(self) -> None:
         self._model = None

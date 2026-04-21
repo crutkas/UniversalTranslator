@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 from typing import Any
@@ -10,12 +11,11 @@ from src.translation.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
 
-try:
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-    HAS_TRANSFORMERS = True
-except ImportError:
-    HAS_TRANSFORMERS = False
+def _import_transformers() -> Any:
+    """Dynamically import transformers (works after runtime pip install)."""
+    return importlib.import_module("transformers")
+
 
 MADLAD_LANG_CODES: dict[str, str] = {
     "en": "en",
@@ -65,15 +65,14 @@ class MadladEngine(TranslationEngine):
         return "Madlad-400"
 
     def needs_download(self) -> bool:
-        if not HAS_TRANSFORMERS or self._model is not None:
+        if not self.is_available() or self._model is not None:
             return False
         cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
         repo_name = self._model_name.replace("/", "--")
         return not os.path.exists(os.path.join(cache_dir, f"models--{repo_name}"))
 
     def download_model(self, progress_callback: Any | None = None) -> None:
-        if not HAS_TRANSFORMERS:
-            raise RuntimeError("transformers is not installed")
+        _import_transformers()  # fail fast if not installed
         if progress_callback:
             progress_callback(f"⬇️ Downloading {self.name}...")
         logger.info("Downloading Madlad-400 model: %s", self._model_name)
@@ -83,11 +82,10 @@ class MadladEngine(TranslationEngine):
 
     def _ensure_model(self) -> None:
         if self._model is None:
-            if not HAS_TRANSFORMERS:
-                raise RuntimeError("transformers is not installed")
+            tf = _import_transformers()
             logger.info("Loading Madlad-400 model: %s", self._model_name)
-            self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
-            self._model = AutoModelForSeq2SeqLM.from_pretrained(self._model_name)
+            self._tokenizer = tf.AutoTokenizer.from_pretrained(self._model_name)
+            self._model = tf.AutoModelForSeq2SeqLM.from_pretrained(self._model_name)
             if self._device != "auto" and self._device != "cpu":
                 self._model = self._model.to(self._device)
 
@@ -112,7 +110,11 @@ class MadladEngine(TranslationEngine):
         return list(MADLAD_LANG_CODES.keys())
 
     def is_available(self) -> bool:
-        return HAS_TRANSFORMERS
+        try:
+            _import_transformers()
+            return True
+        except ImportError:
+            return False
 
     def cleanup(self) -> None:
         self._model = None

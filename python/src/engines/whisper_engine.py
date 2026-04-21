@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import io
 import logging
 import os
@@ -11,18 +12,10 @@ from src.engines.base import STTEngine
 
 logger = logging.getLogger(__name__)
 
-try:
-    from faster_whisper import WhisperModel, download_model
 
-    HAS_FASTER_WHISPER = True
-except ImportError:
-    try:
-        from faster_whisper import WhisperModel
-
-        HAS_FASTER_WHISPER = True
-        download_model = None  # type: ignore[assignment,misc]
-    except ImportError:
-        HAS_FASTER_WHISPER = False
+def _import_faster_whisper() -> Any:
+    """Dynamically import faster_whisper (works after runtime pip install)."""
+    return importlib.import_module("faster_whisper")
 
 
 class WhisperEngine(STTEngine):
@@ -33,7 +26,7 @@ class WhisperEngine(STTEngine):
     def __init__(self, model_size: str = "large-v3-turbo", device: str = "auto") -> None:
         self._model_size = model_size
         self._device = self._resolve_device(device)
-        self._model: WhisperModel | None = None  # type: ignore[assignment]
+        self._model: Any = None
 
     @staticmethod
     def _resolve_device(device: str) -> str:
@@ -62,7 +55,7 @@ class WhisperEngine(STTEngine):
 
     def needs_download(self) -> bool:
         """Check if the Whisper model needs to be downloaded."""
-        if not HAS_FASTER_WHISPER:
+        if not self.is_available():
             return False
         if self._model is not None:
             return False
@@ -78,8 +71,7 @@ class WhisperEngine(STTEngine):
 
     def download_model(self, progress_callback: Any | None = None) -> None:
         """Download the Whisper model with progress updates."""
-        if not HAS_FASTER_WHISPER:
-            raise RuntimeError("faster-whisper is not installed")
+        fw = _import_faster_whisper()
 
         if progress_callback:
             progress_callback(f"⬇️ Downloading Whisper {self._model_size}...")
@@ -87,7 +79,7 @@ class WhisperEngine(STTEngine):
         logger.info("Downloading Whisper model: %s", self._model_size)
 
         # Loading the model triggers the download
-        self._model = WhisperModel(
+        self._model = fw.WhisperModel(
             self._model_size,
             device=self._device,
             compute_type=self._compute_type_for_device(self._device),
@@ -100,10 +92,9 @@ class WhisperEngine(STTEngine):
 
     def _ensure_model(self) -> None:
         if self._model is None:
-            if not HAS_FASTER_WHISPER:
-                raise RuntimeError("faster-whisper is not installed")
+            fw = _import_faster_whisper()
             logger.info("Loading Whisper model: %s on %s", self._model_size, self._device)
-            self._model = WhisperModel(
+            self._model = fw.WhisperModel(
                 self._model_size,
                 device=self._device,
                 compute_type=self._compute_type_for_device(self._device),
@@ -123,7 +114,11 @@ class WhisperEngine(STTEngine):
         return " ".join(segment.text.strip() for segment in segments)
 
     def is_available(self) -> bool:
-        return HAS_FASTER_WHISPER
+        try:
+            _import_faster_whisper()
+            return True
+        except ImportError:
+            return False
 
     def cleanup(self) -> None:
         self._model = None
