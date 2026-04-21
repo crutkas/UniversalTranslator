@@ -35,22 +35,21 @@ def create_engine(name: str, config: dict[str, Any] | None = None) -> STTEngine:
         available = ", ".join(sorted(_ENGINE_MAP.keys()))
         raise ValueError(f"Unknown STT engine '{name}'. Available: {available}")
 
-    engine_cls = _ENGINE_MAP[name]
     config = config or {}
 
     if name == "whisper":
-        return engine_cls(
+        return WhisperEngine(
             model_size=config.get("model_size", "large-v3-turbo"),
             device=config.get("device", "auto"),
         )
     elif name == "canary_qwen":
-        return engine_cls(endpoint=config.get("endpoint", "http://localhost:8001/transcribe"))
+        return CanaryQwenEngine(endpoint=config.get("endpoint", "http://localhost:8001/transcribe"))
     elif name == "voxtral":
-        return engine_cls(endpoint=config.get("endpoint", "http://localhost:8002/transcribe"))
+        return VoxtralEngine(endpoint=config.get("endpoint", "http://localhost:8002/transcribe"))
     elif name == "qwen3_asr":
-        return engine_cls(model_name=config.get("model_name", "Qwen/Qwen3-ASR-1.7B"))
+        return Qwen3ASREngine(model_name=config.get("model_name", "Qwen/Qwen3-ASR-1.7B"))
 
-    return engine_cls()
+    raise ValueError(f"Unknown STT engine '{name}'")
 
 
 def available_engines() -> list[str]:

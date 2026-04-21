@@ -75,9 +75,11 @@ class SystemTray:
 
         # STT model selection
         stt_menu = menu.addMenu("STT Model")
+        assert stt_menu is not None
         stt_group: list[QAction] = []
         for engine_name in available_engines():
-            action = QAction(engine_name, checkable=True)
+            action = QAction(engine_name)
+            action.setCheckable(True)
             action.setChecked(engine_name == self._current_model)
             action.triggered.connect(lambda checked, name=engine_name: self._select_model(name))
             stt_menu.addAction(action)
@@ -87,16 +89,19 @@ class SystemTray:
         menu.addSeparator()
 
         # Translation toggle
-        self._translate_action = QAction("Enable Translation", checkable=True)
+        self._translate_action = QAction("Enable Translation")
+        self._translate_action.setCheckable(True)
         self._translate_action.setChecked(self._translation_enabled)
         self._translate_action.triggered.connect(self._toggle_translation)
         menu.addAction(self._translate_action)
 
         # Translation model selection
         trans_menu = menu.addMenu("Translation Model")
+        assert trans_menu is not None
         trans_group: list[QAction] = []
         for engine_name in available_translation_engines():
-            action = QAction(engine_name, checkable=True)
+            action = QAction(engine_name)
+            action.setCheckable(True)
             action.setChecked(engine_name == self._translation_model)
             action.triggered.connect(
                 lambda checked, name=engine_name: self._select_translation_model(name)
@@ -107,6 +112,7 @@ class SystemTray:
 
         # Target language selection
         lang_menu = menu.addMenu("Target Language")
+        assert lang_menu is not None
         languages = {
             "es": "Spanish",
             "fr": "French",
@@ -123,7 +129,8 @@ class SystemTray:
         }
         lang_group: list[QAction] = []
         for code, label in languages.items():
-            action = QAction(f"{label} ({code})", checkable=True)
+            action = QAction(f"{label} ({code})")
+            action.setCheckable(True)
             action.setChecked(code == self._target_language)
             action.triggered.connect(lambda checked, c=code: self._select_target_language(c))
             lang_menu.addAction(action)

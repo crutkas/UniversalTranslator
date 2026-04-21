@@ -81,7 +81,7 @@ class SeamlessEngine(TranslationEngine):
             inputs = {k: v.to(self._device) for k, v in inputs.items()}
 
         outputs = self._model.generate(**inputs, tgt_lang=tgt_code, max_new_tokens=512)
-        return self._processor.decode(outputs[0], skip_special_tokens=True)
+        return str(self._processor.decode(outputs[0], skip_special_tokens=True))
 
     def supported_languages(self) -> list[str]:
         return list(SEAMLESS_LANG_CODES.keys())

@@ -33,13 +33,25 @@ def create_translation_engine(name: str, config: dict[str, Any] | None = None) -
         available = ", ".join(sorted(_ENGINE_MAP.keys()))
         raise ValueError(f"Unknown translation engine '{name}'. Available: {available}")
 
-    engine_cls = _ENGINE_MAP[name]
     config = config or {}
 
-    return engine_cls(
-        model_name=config.get("model_name", ""),
-        device=config.get("device", "auto"),
-    )
+    if name == "nllb-200":
+        return NLLBEngine(
+            model_name=config.get("model_name", "facebook/nllb-200-1.3B"),
+            device=config.get("device", "auto"),
+        )
+    elif name == "seamless-m4t":
+        return SeamlessEngine(
+            model_name=config.get("model_name", "facebook/seamless-m4t-v2-large"),
+            device=config.get("device", "auto"),
+        )
+    elif name == "madlad-400":
+        return MadladEngine(
+            model_name=config.get("model_name", "google/madlad400-3b-mt"),
+            device=config.get("device", "auto"),
+        )
+
+    raise ValueError(f"Unknown translation engine '{name}'")
 
 
 def available_translation_engines() -> list[str]:

@@ -33,7 +33,7 @@ except (AttributeError, OSError):
 def get_foreground_window() -> int:
     """Get the handle of the currently focused window."""
     if HAS_WIN32:
-        return user32.GetForegroundWindow()
+        return int(user32.GetForegroundWindow())
     return 0
 
 

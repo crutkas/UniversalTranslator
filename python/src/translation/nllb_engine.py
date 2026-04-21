@@ -93,7 +93,7 @@ class NLLBEngine(TranslationEngine):
             forced_bos_token_id=tgt_lang_id,
             max_new_tokens=512,
         )
-        return self._tokenizer.decode(outputs[0], skip_special_tokens=True)
+        return str(self._tokenizer.decode(outputs[0], skip_special_tokens=True))
 
     def supported_languages(self) -> list[str]:
         return list(NLLB_LANG_CODES.keys())

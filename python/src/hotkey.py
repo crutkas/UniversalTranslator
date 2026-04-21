@@ -72,10 +72,10 @@ def _key_to_name(key: keyboard.Key | keyboard.KeyCode) -> str | None:  # type: i
             return "shift"
         if name.startswith("alt"):
             return "alt"
-        return name
+        return str(name)
     elif isinstance(key, keyboard.KeyCode):
         if key.char:
-            return key.char.lower()
+            return str(key.char.lower())
         if key.vk:
             return f"vk_{key.vk}"
     return None

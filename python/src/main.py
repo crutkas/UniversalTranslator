@@ -16,6 +16,7 @@ from src.config import load_config
 from src.engines.factory import create_engine
 from src.hotkey import AppState, HotkeyManager
 from src.paste import PasteManager
+from src.translation.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +51,12 @@ class AppController(QObject if HAS_PYQT6 else object):  # type: ignore[misc]
         self._stt_engine = create_engine(model_name, model_config)
 
         # Translation engine (lazy, only if enabled)
-        self._translation_engine = None
+        self._translation_engine: TranslationEngine | None = None
         self._translation_enabled = config.get("translation", {}).get("enabled", False)
         self._target_language = config.get("translation", {}).get("target_language", "es")
 
         # Overlay (created after QApplication)
-        self._overlay = None
+        self._overlay: Any = None
 
         # Hotkey manager
         self._hotkey = HotkeyManager(

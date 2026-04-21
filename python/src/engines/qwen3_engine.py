@@ -38,9 +38,9 @@ class Qwen3ASREngine(STTEngine):
     def transcribe(self, audio_bytes: bytes) -> str:
         self._ensure_model()
         audio_file = io.BytesIO(audio_bytes)
-        result = self._model.transcribe(audio_file)  # type: ignore[union-attr]
+        result = self._model.transcribe(audio_file)  # type: ignore[attr-defined]
         if isinstance(result, dict):
-            return result.get("text", "").strip()
+            return str(result.get("text", "")).strip()
         return str(result).strip()
 
     def is_available(self) -> bool:

@@ -32,7 +32,7 @@ class VoxtralEngine(STTEngine):
             )
             response.raise_for_status()
             data = response.json()
-            return data.get("text", "").strip()
+            return str(data.get("text", "")).strip()
         except httpx.HTTPError as e:
             logger.error("Voxtral transcription failed: %s", e)
             raise RuntimeError(f"Voxtral transcription failed: {e}") from e
