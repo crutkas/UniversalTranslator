@@ -1,10 +1,10 @@
-# UniversalTranslator — Voice-to-Text Hotkey App
+# Talk — Voice-to-Text Hotkey App
 
 ## Problem
 Build a global push-to-talk voice-to-text tool that captures speech, transcribes it using one of four selectable STT models, and pastes the result into the currently focused application. The UI shows a real-time waveform during recording and a processing indicator during transcription. Optionally, the transcribed text can be live-translated to a target language before pasting.
 
 ## Repository
-**GitHub:** `crutkas/UniversalTranslator`
+**GitHub:** `crutkas/Talk`
 
 ## Approach
 1. **Python prototype** — Full working app with all features
@@ -342,7 +342,7 @@ All three share the same JSON config format and the same local model server arch
 ## Repo Structure
 
 ```
-UniversalTranslator/                # github.com/crutkas/UniversalTranslator
+Talk/                # github.com/crutkas/Talk
 ├── README.md
 ├── config.json                    # Shared config format
 ├── python/

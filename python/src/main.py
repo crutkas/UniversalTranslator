@@ -1,4 +1,4 @@
-"""UniversalTranslator — Main entry point.
+"""Talk — Main entry point.
 
 Wires together audio capture, hotkey detection, STT engine,
 optional translation, overlay UI, and paste output.
@@ -260,7 +260,7 @@ class AppController(QObject if HAS_PYQT6 else object):  # type: ignore[misc]
             self._overlay.show_signal.emit()
         if hasattr(self, "_tray") and hasattr(self._tray, "_tray"):
             self._tray._tray.showMessage(
-                "UniversalTranslator",
+                "Talk",
                 message,
                 QSystemTrayIcon.MessageIcon.Warning,  # type: ignore[attr-defined]
                 5000,
@@ -331,7 +331,7 @@ class AppController(QObject if HAS_PYQT6 else object):  # type: ignore[misc]
                 # Tray notification
                 if hasattr(self, "_tray") and hasattr(self._tray, "_tray"):
                     self._tray._tray.showMessage(
-                        "UniversalTranslator",
+                        "Talk",
                         f"✅ {engine.name} is ready to use.",
                         QSystemTrayIcon.MessageIcon.Information,  # type: ignore[attr-defined]
                         3000,
@@ -340,7 +340,7 @@ class AppController(QObject if HAS_PYQT6 else object):  # type: ignore[misc]
                 logger.error("Model download failed: %s", e)
                 if hasattr(self, "_tray") and hasattr(self._tray, "_tray"):
                     self._tray._tray.showMessage(
-                        "UniversalTranslator",
+                        "Talk",
                         f"❌ Failed to download {engine.name}: {e}",
                         QSystemTrayIcon.MessageIcon.Warning,  # type: ignore[attr-defined]
                         5000,
@@ -382,14 +382,14 @@ class AppController(QObject if HAS_PYQT6 else object):  # type: ignore[misc]
             )
             if hasattr(self, "_tray") and hasattr(self._tray, "_tray"):
                 self._tray._tray.showMessage(
-                    "UniversalTranslator",
+                    "Talk",
                     f"{self._stt_engine.name} will be downloaded on first use.\n"
                     "This is a one-time operation.",
                     QSystemTrayIcon.MessageIcon.Information,  # type: ignore[attr-defined]
                     5000,
                 )
 
-        logger.info("UniversalTranslator ready. Hotkey: %s", self._config.get("hotkey"))
+        logger.info("Talk ready. Hotkey: %s", self._config.get("hotkey"))
 
 
 def main() -> None:
@@ -406,7 +406,7 @@ def main() -> None:
         sys.exit(1)
 
     app = QApplication(sys.argv)
-    app.setApplicationName("UniversalTranslator")
+    app.setApplicationName("Talk")
     app.setQuitOnLastWindowClosed(False)
 
     controller = AppController(config)

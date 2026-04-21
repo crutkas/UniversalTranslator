@@ -1,4 +1,4 @@
-"""Configuration loader for UniversalTranslator."""
+"""Configuration loader for Talk."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 DEFAULT_CONFIG_PATHS = [
     os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.json"),
-    os.path.join(os.path.expanduser("~"), ".universaltranslator", "config.json"),
+    os.path.join(os.path.expanduser("~"), ".talk", "config.json"),
 ]
 
 DEFAULT_CONFIG: dict[str, Any] = {

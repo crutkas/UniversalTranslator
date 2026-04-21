@@ -65,7 +65,7 @@ class SystemTray:
         self._build_menu()
 
     def _build_tooltip(self) -> str:
-        tip = f"UniversalTranslator | STT: {self._current_model}"
+        tip = f"Talk | STT: {self._current_model}"
         if self._translation_enabled:
             tip += f" | Translate → {self._target_language}"
         return tip

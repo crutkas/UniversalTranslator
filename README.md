@@ -1,4 +1,4 @@
-# UniversalTranslator
+# Talk
 
 A global push-to-talk voice-to-text tool with optional real-time translation. Press a hotkey, speak, and the transcribed (and optionally translated) text is pasted into whatever app has focus.
 
@@ -80,7 +80,7 @@ Hotkey Release → Stop Recording → STT Engine → [Translation] → Paste
 ## Project Structure
 
 ```
-UniversalTranslator/
+Talk/
 ├── config.json              # Shared config
 ├── python/                  # Python prototype
 │   ├── src/
