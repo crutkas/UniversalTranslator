@@ -167,8 +167,6 @@ if HAS_PYQT6:
         TEXT_PRIMARY = "#FFFFFF"
         TEXT_SECONDARY = "rgba(255,255,255,0.6)"
         TEXT_TERTIARY = "rgba(255,255,255,0.4)"
-        BG_SURFACE = QColor(44, 44, 44, 240)
-        BG_BORDER = QColor(255, 255, 255, 15)
 
         def __init__(
             self,
@@ -180,6 +178,8 @@ if HAS_PYQT6:
             opacity: float = 0.96,
         ) -> None:
             super().__init__()
+            self._bg_surface = QColor(44, 44, 44, 240)
+            self._bg_border = QColor(255, 255, 255, 15)
             self._width = width
             self._height = height
             self._waveform_color = waveform_color
@@ -429,8 +429,8 @@ if HAS_PYQT6:
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
             # Fluent dark surface with subtle border
-            painter.setBrush(self.BG_SURFACE)
-            painter.setPen(QPen(self.BG_BORDER, 1.0))
+            painter.setBrush(self._bg_surface)
+            painter.setPen(QPen(self._bg_border, 1.0))
             painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 8, 8)
             painter.end()
 
