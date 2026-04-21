@@ -22,7 +22,7 @@ except ImportError:
 class Qwen3ASREngine(STTEngine):
     """Speech-to-text using Qwen3-ASR in-process."""
 
-    REQUIRED_PACKAGES = {"qwen_asr": "qwen-asr>=0.1"}
+    REQUIRED_PACKAGES = {"qwen_asr": "qwen-asr"}
 
     def __init__(self, model_name: str = "Qwen/Qwen3-ASR-1.7B") -> None:
         self._model_name = model_name
